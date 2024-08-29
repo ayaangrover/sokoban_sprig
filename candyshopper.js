@@ -2,15 +2,65 @@
 @title: candyshopper
 @author: ayaangrover
 @tags: ["puzzle"]
-@addedOn: 2024-07-15
+@addedOn: 2024-07-19
 */
 
+let lives = 3;
+let claimedLivesOnCurrentLevel = 0
+
+let isMuted = false;
 const player = "p"
 const juice = "j"
 const chocolate = "c"
 const candycane = "a"
+const money = "m"
 const goal = "g";
 const wall = "w";
+const badjuice = "b";
+const stepForwardTune = tune`
+127.29844413012731,
+42.432814710042436: C4^42.432814710042436,
+1188.1188118811883`;
+const resetTune = tune`
+161.29032258064515,
+161.29032258064515: E5/161.29032258064515,
+161.29032258064515: D5/161.29032258064515,
+161.29032258064515: C5/161.29032258064515,
+4516.129032258064`;
+const winTune = tune`
+100.67114093959732: C4/100.67114093959732,
+100.67114093959732: F4/100.67114093959732,
+100.67114093959732: B4/100.67114093959732,
+100.67114093959732: E5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: G5/100.67114093959732,
+100.67114093959732: F5/100.67114093959732,
+100.67114093959732: E5/100.67114093959732,
+100.67114093959732: C4/100.67114093959732,
+100.67114093959732: F4/100.67114093959732,
+100.67114093959732: B4/100.67114093959732,
+100.67114093959732: E5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: A5/100.67114093959732,
+100.67114093959732: G5/100.67114093959732,
+100.67114093959732: F5/100.67114093959732,
+100.67114093959732: E5/100.67114093959732,
+100.67114093959732: D5/100.67114093959732,
+1107.3825503355706`;
+const levelTune = tune`
+149.2537313432836: D5-149.2537313432836,
+149.2537313432836: E5-149.2537313432836,
+149.2537313432836: F5-149.2537313432836,
+4328.358208955224`;
+const addLifeTune = tune`
+157.06806282722513: C5-157.06806282722513 + G5/157.06806282722513,
+157.06806282722513: A5/157.06806282722513 + D5-157.06806282722513,
+157.06806282722513: B5/157.06806282722513 + E5-157.06806282722513,
+4554.973821989529`;
+
 
 setLegend(
   /* [ player, bitmap`
@@ -33,13 +83,13 @@ setLegend(
   [player, bitmap`
 ................
 ....00000000....
-..000......000..
-.00..........00.
-.0..0......0..0.
-.0....0..0....0.
-.0....0000....0.
-.00..........00.
-..000......000..
+..000222222000..
+.00222222222200.
+.02202222220220.
+.02222022022220.
+.02222000022220.
+.00222222222200.
+..000222222000..
 ....00000000....
 ....0......0....
 ....0......0....
@@ -47,6 +97,23 @@ setLegend(
 ................
 ................
 ................`],
+  [money, bitmap`
+.......4........
+......4444......
+.....4.4..4.....
+....4..4...4....
+....4..4........
+....4..4........
+.....4.4........
+......4444......
+.......4..4.....
+.......4...4....
+.......4...4....
+....4..4...4....
+.....4.4..4.....
+......4444......
+.......4........
+.......4........`],
   [juice, bitmap`
 ................
 ....1111........
@@ -81,6 +148,23 @@ setLegend(
 ....3333333.....
 ....3333333.....
 ....3333333.....`],
+  [badjuice, bitmap`
+................
+....1111........
+.......1........
+.......1........
+...33333333333..
+...32222222223..
+...32232223223..
+...32223232223..
+...32222322223..
+...32332223323..
+...32332223323..
+...32222222223..
+...32322222323..
+...32333333323..
+...32222222223..
+...33333333333..`],
   [candycane, bitmap`
 ................
 ................
@@ -138,89 +222,208 @@ LLLLLLLLLLLLLLL.
 let level = 0
 const levels = [
   map`
-p..
-..j
-..g`,
+pjg`,
   map`
-p..jg
-.....
-j.c..
-.a...
+pbjg`,
+  map`
+pmbjg
+.cgww`,
+  map`
+p...
+.m.j
+.b.g`,
+  map`
+pmbjg
+ww...
+..c..
+ja...
 g.g.g`,
   map`
 p..
 ww.
 ...
-.ww
+.wb
 ...
-ww.
+bw.
 ...
-.ww
+.wb
 ...
-ww.
+bw.
 gj.
-www`,
+wwb`,
   map`
-.p.
+bpb
 ...
 acj
 ggg`,
   map`
-w.p..
-wj.a.
-gj.cg
-wgwgw
-wwwww`,
+wp.mbw
+wj.aww
+gj.cgw
+wgwgww
+wwwwww`,
   map`
 ...............gw
-.a.............ww
+.a............bww
 ..a............gw
 ...a..........gww
-....a.........pgw
-.....a........gww
-......a........gw
-.......a.......ww
-...............gw`,
+....a..........gw
+wwwwwa........gww
+bb....a........gw
+mww....a......bww
+pww............gw`,
   map`
-p.g..
-.....
-.g..
-.c..a
-.....`,
-  map`
-p..w......www...w.w
-ww.wwww.w..ww.w.w.w
-....w...w.www.w.w.w
-.ww...w.w.www.w...w
+p..wwwwwwwwwwwwwwww
+ww.wwww.wmww....www
+....w...w.w...w.www
+.ww...w.w...w.w.w.w
 .www.ww.wwwww.w.w.w
-.w.w..w...w...w.w.w
-...w.ww.w.w.w.w.w.w
+.w.w..w...w...w...w
+...w.ww.w.w.w.www.w
 .w.w.w..w...w.w.w.w
 .w.w.w.wwwwww.w.w.w
-wwww.w.w...ww.w.w.w
-.....w...w.ww.www.w
-.wwwww.w.w.ww.www.w
-.www.w.w.wwww.www.w
+wwww.w.w...ww.w...w
+.....w...w.w..w.w.w
+.wwwww.w.wmww.w.www
+.wwwmw.w.wwww.w...w
 .....w.w...ww.www.w
 wwwwww.www.w..w...w
 w......w.w.wwww.www
-wwwwww...w....w.jg.`,
+wwwwww...w....w.jgw`,
   map`
-..wwgwgwgwgwgwgwgwgwg
-pa.wa.j.j.j.j.j.j.j.j
-w..w.w.w.w.w.w.w.w.w.
-w..w.w.w.w.w.w.w.w.w.
-g..w.................
-w..ww.wwwwwwwwwwwwwww
-w..ww.wgwgwgwgwgwgwgw
-w..ww.wcwcwcwcwcwcwcw
-w..ww.w.w.w.w.w.w.w.w
-w..ww.w.w.w.w.w.w.w.w
-w..ww.w.w.w.w.w.w.w.w
-w..ww.w.w.w.w.w.w.w.w
-w..ww.w.w.w.w.w.w.w.w
-wa.ww.w.w.w.w.w.w.w.w
-wg..................wdd`
+bbbb...bbbb
+bbbb.c...bb
+mbbbbgbb..b
+pbcgbbbgc.b
+mbbbbgbb..b
+bbbbbcb...b
+bbbbb...bbb`,
+  map`
+gww..w......w
+jw.cpw.www.aw
+.w.w.w.w...ag
+.b.w.w.w.b.ag
+...w.w.w.b.ag
+...w.w.w.bwgw
+...w...w.bwww
+g........bwww
+...w...wbbwww`,
+  map`
+wgwwwbpbwwwgw
+bc...b.b...cb
+b...........b
+ww.wwwwwwwwww
+...w...w...jg
+.www.w.w.w.ww
+.w...w.w.w.ww
+...www...w.jg`,
+  map`
+.....
+pj...
+www..
+g....`,
+  map`
+wwwwwwgbp...
+w...........
+w.j....ww...
+w......www..
+w......bgww.
+w......jjgww
+ww.wwwb..www`,
+  map`
+bww..cg
+bpm....
+.j.w...
+.b..g..`,
+  map`
+bww..cg
+bpm....
+.j.w...
+.b..g..`,
+  map`
+wwwww...ww
+wwpc..w.jg
+gwww....jg
+jgwww...jg
+.cgww...jg
+..ag....jg
+........jg
+wwwwwww.jg`,
+  map`
+pmmm....................
+bwwwwwwwwwwwwwwwwwwwwww.
+........................
+.wwwwwwwwwwwwwwwwwwwwwwb
+........................
+bwwwwwwwwwwwwwwwwwwwwww.
+........................
+.wwwwwwwwwwwwwwwwwwwwwwb
+........................
+bwwwwwwwwwwwwwwwwwwwwww.
+........................
+.wwwwwwwwwwwwwwwwwwwwwwb
+......................jg
+wwwwwwwwwwwwwwwwwwwwwwww`,
+  map`
+bbb..
+bpj..
+bbb..
+g....`,
+  map`
+ggggwwwgggg
+aaaawwwaaaa
+....www....
+....bmb....
+wwwwwpwwwww`,
+  map`
+ggwwwgggggg
+jjg.ccccccg
+pjg......cg
+jjg.ccccccg
+ggwwwgggggg`,
+  map`
+gbp...b
+jwwww.w
+......w
+wwwwwwb`,
+  map`
+gbp.www
+jwb...w
+...ww.w
+ww....w`,
+  map`
+pw...w...w...
+.w.w.w.w.w.w.
+...w...w...w.
+bwwwwwwwwwww.
+...w...w...w.
+jw.w.w.w.w.w.
+gw...w...w...`,
+  map`
+..bbp
+.wbbb
+jwbbb
+gwwww`,
+  map`
+w..w
+pjjg
+bwgw`,
+  map`
+w.b
+pj.
+b.g`,
+  map`
+g.......
+gwwww...
+..apw...
+.awww.a.
+.......g`,
+  map`
+ggw.agw
+jjw.www
+......w
+wwbwccw
+mp.wggw`
 ]
 
 const currentLevel = levels[level];
@@ -236,40 +439,108 @@ setPushables({
 })
 
 onInput("w", () => {
-  getFirst(player).y -= 1
-})
+  const playerSprite = getFirst(player);
+  if (playerSprite.y > 0) {
+    playerSprite.y -= 1;
+    playTune(stepForwardTune);
+  }
+});
+
 onInput("s", () => {
-  getFirst(player).y += 1
-})
+  const playerSprite = getFirst(player);
+  if (playerSprite.y < height() - 1) {
+    playerSprite.y += 1;
+    playTune(stepForwardTune);
+  }
+});
+
 onInput("a", () => {
-  getFirst(player).x -= 1
-})
+  const playerSprite = getFirst(player);
+  if (playerSprite.x > 0) {
+    playerSprite.x -= 1;
+    playTune(stepForwardTune);
+  }
+});
+
 onInput("d", () => {
-  getFirst(player).x += 1
-})
+  const playerSprite = getFirst(player);
+  if (playerSprite.x < width() - 1) {
+    playerSprite.x += 1;
+    playTune(stepForwardTune);
+  }
+});
 
 onInput("j", () => {
   const currentLevel = levels[level];
 
   if (currentLevel !== undefined) {
     clearText("");
+    const currentLevel = levels[level];
+    lives -= claimedLivesOnCurrentLevel
+    claimedLivesOnCurrentLevel = 0
     setMap(currentLevel);
+    playTune(resetTune);
+  }
+});
+
+onInput("l", () => {
+  level++;
+  if (level < levels.length) {
+    claimedLivesOnCurrentLevel = 0
+    setMap(levels[level]);
+    playTune(levelTune); // Play a tune to indicate level reset
   }
 });
 
 afterInput(() => {
+  const playerSprite = getFirst(player);
+  const badJuiceTiles = tilesWith(badjuice);
+  const currentLevel = levels[level];
+  if (tilesWith(player, money).length > 0) {
+    const currentLevel = levels[level];
+    if (currentLevel !== undefined) {
+      lives++;
+      claimedLivesOnCurrentLevel++;
+      playTune(addLifeTune);
+      let xCoord = playerSprite.x;
+      let yCoord = playerSprite.y;
+      clearTile(xCoord, yCoord);
+      addSprite(xCoord, yCoord, 'p')
+    }
+  }
+
+  const fails = tilesWith(player, badjuice).length;
+  if (fails >= 1) {
+    playTune(resetTune);
+    lives--;
+    claimedLivesOnCurrentLevel--
+  }
+
+  if (lives <= 0) {
+    level = 0; // Reset level
+    setMap(levels[level]); // Load the initial map
+    lives = 3;
+    claimedLivesOnCurrentLevel = 0
+  }
+
   const baskets = tilesWith(goal).length;
 
   const successes = tilesWith(goal, juice).length + tilesWith(goal, chocolate).length + tilesWith(goal, candycane).length;
   if (successes === baskets) {
     level = level + 1;
+    claimedLivesOnCurrentLevel = 0
 
     const currentLevel = levels[level];
 
     if (currentLevel !== undefined) {
       setMap(currentLevel);
+      playTune(levelTune);
     } else {
-      addText("game over");
+      addText("you win!");
+      playTune(winTune);
     }
   }
+
+  // Display Lives Counter
+  addText(`Lives: ${lives}`, { x: 11, y: 1, color: color`1` }); // Display lives count on the screen
 });
